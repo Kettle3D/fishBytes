@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <ReleaseVersion>0.2</ReleaseVersion>
+    <SynchReleaseVersion>false</SynchReleaseVersion>
+    <StartupObject>Program</StartupObject>
+    <ApplicationIcon>..\..\fishScript\fishScript-.NET-Standard\FS\fishScript.ico</ApplicationIcon>
+    <AssemblyName>fbi</AssemblyName>
+    <Description>fishBytes is a stack-based functional bytecode language useful as an intermediate
+language or for a lightweight interpreted language. It is designed to be easy to write,
+using only characters that are on the English (US) keyboard layout.</Description>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <NoStdLib>false</NoStdLib>
+    <Optimize>true</Optimize>
+    <DocumentationFile>bin\Debug\netcoreapp3.1\STAB.NET.xml</DocumentationFile>
+    <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <NoStdLib>false</NoStdLib>
+  </PropertyGroup>
+  <ProjectExtensions>
+    <MonoDevelop>
+      <Properties>
+        <Deployment.LinuxDeployData scriptName="fishBytes" />
+      </Properties>
+    </MonoDevelop>
+  </ProjectExtensions>
+</Project>
