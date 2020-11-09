@@ -1,10 +1,11 @@
+#region Collapse for adding Commands
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 using System.Linq;
 using System.IO;
 using System;
-
+#endregion
 /*                 ASCII to hex conversion chart
    | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | A | B | C | D | E | F |
    |___|___|___|___|___|___|___|___|___|___|___|___|___|___|___|___|
@@ -27,6 +28,10 @@ public struct fishBytesNativeObject
 {
     Dictionary<object, object> properties;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="T:fishBytesNativeObject"/> struct.
+    /// </summary>
+    /// <param name="properties">The fields to use. (Optional)</param>
     public fishBytesNativeObject(Dictionary<object, object> properties = null)
     {
         if (properties != null) this.properties = properties;
@@ -38,6 +43,11 @@ public struct fishBytesNativeObject
         }
     }
 
+    /// <summary>
+    /// Construct an object from the specified template object.
+    /// </summary>
+    /// <returns>The object.</returns>
+    /// <param name="template">A template opject to use.</param>
     public static fishBytesNativeObject Construct(fishBytesNativeObject template)
     {
         return new fishBytesNativeObject(template.properties);
@@ -203,6 +213,8 @@ public class fishBytesInterpreter
     List<object> stack = new List<object>();
     List<uint> protectedStack = new List<uint>();
     Dictionary<int, object> variables = new Dictionary<int, object>();
+    fishBytesNativeObject thisFunc = new fishBytesNativeObject();
+    Func<fishBytesNativeObject> getLocalObject;
     int commentLevel;
 
     /// <summary>
@@ -263,7 +275,8 @@ public class fishBytesInterpreter
     /// <param name="opcodes">The program to execute.</param>
     public int Execute(byte[] opcodes)
     {
-        //stack.Clear();
+        stack.Clear();
+        getLocalObject = () => thisFunc;
 
         while (location < opcodes.Length)
         {
@@ -432,7 +445,10 @@ public class fishBytesInterpreter
 
                         else if (castType.GetType() == new uint().GetType())
                             Push(Convert.ToUInt32(ThingToCast));
-
+                        else if (castType.GetType() == new fishBytesNativeObject().GetType())
+                        {
+                            if (ThingToCast.GetType() == "".GetType()) Push(fishBytesNativeObject.FromString((string)ThingToCast));
+                        }
                         else
                         {
                             Push(ThingToCast);
@@ -462,11 +478,8 @@ public class fishBytesInterpreter
                         var c = Pop();
                         if (c.Equals(0) || c.Equals(false))
                             break;
-                        else
-                        {
-                            location = (uint)l;
-                            goto next;
-                        }
+                        location = (uint)l;
+                        goto next;
 
                     case 0x22: // STRING
                         Push("");
@@ -625,7 +638,6 @@ public class fishBytesInterpreter
 #pragma warning disable RECS0088 // Comparing equal expression for equality is usually useless, but not in this scenario.
                         if (Convert.ToSingle(Pop()) >= Convert.ToSingle(Pop()))
                         {
-#pragma warning restore RECS0088 // Comparing equal expression for equality is usually useless, but not in this scenario.
                             Push(true);
                         }
                         else
@@ -635,7 +647,6 @@ public class fishBytesInterpreter
                         break;
 
                     case 0x3E: // GREATER THAN (GT)
-#pragma warning disable RECS0088 // Comparing equal expression for equality is usually useless, but not in this scenario.
                         if (Convert.ToSingle(Pop()) <= Convert.ToSingle(Pop()))
                         {
 #pragma warning restore RECS0088 // Comparing equal expression for equality is usually useless, but not in this scenario.
@@ -683,17 +694,59 @@ public class fishBytesInterpreter
                         break;
                     #endregion
 
-                    case 0x6D:
+                    case 0x6D: // MAKE
                         Push(fishBytesNativeObject.Construct((fishBytesNativeObject)Pop()));
                         break;
 
-                    case 0x66:
+                    case 0x66: // ARRAY_LOAD
                         foreach (var item in (List<object>)Pop())
                         {
                             stack.Add(item);
                         }
                         break;
-                        
+
+                    case 0x3A: // SET_LOCAL
+                        int loc = Convert.ToInt32(Pop());
+                        getLocalObject = () => (fishBytesNativeObject)variables[loc];
+                        break;
+
+                    case 0x6E: // LOCAL_SET_LOCAL
+                        int lc = Convert.ToInt32(Pop());
+                        getLocalObject = () => (fishBytesNativeObject)variables[lc];
+                        break;
+
+                    case 0x76: // VAR_LOCAL
+                        getLocalObject().Set(Pop(), Pop());
+                        break;
+
+                    case 0x62: // LOAD_LOCAL
+                        Push(getLocalObject().Get(Pop()));
+                        break;
+
+                    case 0x6A: // GET_FROM_INDEX
+                        Push(stack[Convert.ToInt32(Pop())]);
+                        break;
+
+                    case 0x4F: // OBJECT
+                        Push(new fishBytesNativeObject());
+                        break;
+
+                    case 0x5D: // MOVE_TO_INDEX
+                        stack.Insert((int)Pop(), Pop());
+                        break;
+
+                    case 0x5B: // POP_FROM_INDEX
+                        Push(Pop(Convert.ToInt32(Pop())));
+                        break;
+
+                    case 0x6B: // SIZE
+                        Push(stack.Count);
+                        break;
+
+                    case 0x2E: // PTRLOC
+                        Push(location);
+                        break;
+
                     // add more above this line
                     #region Collapse for adding commands
                     // Whitespace characters are ignored.
@@ -725,13 +778,14 @@ public class Program
     /// The list of opcodes supported in this version.
     /// </summary>
     #endregion
+    #region Help
     public static readonly string help = $@"
 =====================================================================
 =                         List of opcodes:                          =
 =====================================================================
 
 +------+--------------+----------------------+
-| Char | Command Name |     Description      |
+| Byte | Command Name |     Description      |
 +------+--------------+----------------------+
 |  a   |      ADD     | If the stack has no  |
 |      |              | items, push 0. If it |
@@ -739,6 +793,11 @@ public class Program
 |      |              | number. Else, pop two|
 |      |              | numbers and add their|
 |      |              | sum.                 |
++------+--------------+----------------------+
+|  b   |  LOAD_LOCAL  | Pop a value and push |
+|      |              | the contents of a    |
+|      |              | local variable with  |
+|      |              | that name.           |
 +------+--------------+----------------------+
 |  c   |     BYTE     | Push an 8-bit        |
 |      |              | unsigned integer (0) |
@@ -756,8 +815,18 @@ public class Program
 |      |              | variable with that   |
 |      |              | name.                |
 +------+--------------+----------------------+
+|  h   |     HELP     | Print out this info. |
++------+--------------+----------------------+
 |  i   |     UINT     | Push a 32-bit        |
 |      |              | unsigned integer (0) |
++------+--------------+----------------------+
+|  j   |GET_FROM_INDEX| Pop an index and copy|
+|      |              |the item at that index|
+|      |              | on the stack to the  |
+|      |              | top.                 |
++------+--------------+----------------------+
+|  k   |     SIZE     | Push the size of the |
+|      |              | stack.               |
 +------+--------------+----------------------+
 |  l   |     LINE     | Push a line of text  |
 |      |              | read from stdout.    |
@@ -766,10 +835,19 @@ public class Program
 |      |              | type popped from the |
 |      |              | stack.               |
 +------+--------------+----------------------+
+|  n   |LOCAL_SETLOCAL| Point all VAR_LOCAL  |
+|      |              | and LOAD_LOCAL calls |
+|      |              | to another object    |
+|      |              | stored in a local var|
+|      |              | with a name popped   |
+|      |              | from the stack.      |    
++------+--------------+----------------------+
 |  s   |   SUBTRACT   | Pop two values, push |
 |      |              | their difference.    |
 +------+--------------+----------------------+
-|  w   |     WHILE    | Will be added soon.  |
+|  v   |   VAR_LOCAL  | Pop a, pop b, set a  |
+|      |              | local variable named |
+|      |              | a to the value of b. |
 +------+--------------+----------------------+
 |  A   |     ARGS     | Push each argument   |
 |      |              | onto the stack.      |
@@ -880,11 +958,30 @@ public class Program
 |  $   |      RUN     | Pop a command and run|
 |      |              |it in the system shell|
 +------+--------------+----------------------+
-";
-
-    private readonly string decor = @"
+|  :   |   SET_LOCAL  | Point all VAR_LOCAL  |
+|      |              | and LOAD_LOCAL calls |
+|      |              | to another object    |
+|      |              | stored in a variable |
+|      |              | with a name popped   |
+|      |              | from the stack.      |
 +------+--------------+----------------------+
-|      |              |                      |";
+|  [   |POP_FROM_INDEX| Move the item at a   |
+|      |              | popped index to the  |
+|      |              | top of the stack.    |
++------+--------------+----------------------+
+|  ]   |MOVE_TO_INDEX | Move the item at the |
+|      |              | top of the stack to a|
+|      |              | popped location.     |
++------+--------------+----------------------+
+|  .   |    PTRLOC    | Push the location of |
+|      |              | the interpreter.     |
++------+--------------+----------------------+
+";
+    #endregion
+/*
+|      |              |                      |
++------+--------------+----------------------+
+|      |              |                      |*/
     #region Collapse for adding commands
     /// <summary>
     /// The entry point of the program, where the program control starts and ends.
@@ -912,7 +1009,7 @@ public class Program
                         Console.ForegroundColor = ConsoleColor.White;
                     }
                 }
-                catch (System.ArgumentOutOfRangeException e)
+                catch (ArgumentOutOfRangeException e)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine($".NET Exception Encountered at byte {sword.location} ({Convert.ToChar(bytes[sword.location])})");
@@ -998,7 +1095,7 @@ public class Program
             // Doors and Widnows
             return Environment.GetEnvironmentVariable("localappdata") + @"\fbi\lib";
         }
-        else if (File.Exists(@"/proc/sys/kernel/ostype"))
+        if (File.Exists(@"/proc/sys/kernel/ostype"))
         {
             string osType = File.ReadAllText(@"/proc/sys/kernel/ostype");
             if (osType.StartsWith("Linux", StringComparison.OrdinalIgnoreCase))
@@ -1006,13 +1103,10 @@ public class Program
                 // Lliiinnnuuuuxxxxx bbbboooooiiiiiii
                 return Environment.GetEnvironmentVariable("HOME") + "/.local/share/fbi/lib";
             }
-            else
-            {
-                Console.ForegroundColor = ConsoleColor.DarkYellow;
-                Console.WriteLine("Warning: Your OS is not fully supported. As a result, some programs may not function properly.");
-                Console.ForegroundColor = ConsoleColor.White;
-                return Environment.CurrentDirectory;
-            }
+            Console.ForegroundColor = ConsoleColor.DarkYellow;
+            Console.WriteLine("Warning: Your OS is not fully supported. As a result, some programs may not function properly.");
+            Console.ForegroundColor = ConsoleColor.White;
+            return Environment.CurrentDirectory;
         }
         else if (File.Exists(@"/System/Library/CoreServices/SystemVersion.plist"))
         {
