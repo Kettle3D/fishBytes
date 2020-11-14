@@ -6,7 +6,7 @@
     <ReleaseVersion>0.2</ReleaseVersion>
     <SynchReleaseVersion>false</SynchReleaseVersion>
     <StartupObject>Program</StartupObject>
-    <ApplicationIcon>..\..\fishScript\fishScript-.NET-Standard\FS\fishScript.ico</ApplicationIcon>
+    <ApplicationIcon>..\..\fishScript\fishScript-.NET-Standard\.obsolete-FS\fishScript.ico</ApplicationIcon>
     <AssemblyName>fbi</AssemblyName>
     <Description>fishBytes is a stack-based functional bytecode language useful as an intermediate
 language or for a lightweight interpreted language. It is designed to be easy to write,
@@ -20,12 +20,33 @@ using only characters that are on the English (US) keyboard layout.</Description
     <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <NoStdLib>false</NoStdLib>
+    <NoStdLib>true</NoStdLib>
   </PropertyGroup>
+  <ItemGroup><!---->
+    <None Include="obj\fishBytes.csproj.nuget.cache" />
+    <None Include="obj\project.nuget.cache" />
+    <None Include="obj\fishBytes.csproj.nuget.g.targets" />
+    <None Include="obj\fishBytes.csproj.nuget.g.props" />
+    <None Include="obj\project.assets.json" />
+    <None Include="obj\fishBytes.csproj.nuget.dgspec.json" />
+    <None Include="obj\Debug\netcoreapp3.1\fishBytes.csproj.CoreCompileInputs.cache" />
+    <None Include="obj\Debug\netcoreapp3.1\fbi.pdb" />
+    <None Include="obj\Debug\netcoreapp3.1\fbi" />
+    <None Include="obj\Debug\netcoreapp3.1\fishBytes.csproj.FileListAbsolute.txt" />
+    <None Include="obj\Debug\netcoreapp3.1\fishBytes.csprojAssemblyReference.cache" />
+    <None Include="obj\Debug\netcoreapp3.1\fishBytes.assets.cache" />
+    <None Include="obj\Debug\netcoreapp3.1\fishBytes.genruntimeconfig.cache" />
+    <None Include="obj\Debug\netcoreapp3.1\fishBytes.AssemblyInfoInputs.cache" />
+    <None Include="obj\Debug\netcoreapp3.1\fbi.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="obj\Debug\netcoreapp3.1\fishBytes.AssemblyInfo.cs" />
+    <Compile Include="obj\Debug\netcoreapp3.1\.NETCoreApp,Version=v3.1.AssemblyAttributes.cs" />
+  </ItemGroup>
   <ProjectExtensions>
     <MonoDevelop>
       <Properties>
-        <Deployment.LinuxDeployData scriptName="fishBytes" />
+        <Deployment.LinuxDeployData scriptName="fbi" />
       </Properties>
     </MonoDevelop>
   </ProjectExtensions>

@@ -212,10 +212,20 @@ public class fishBytesInterpreter
     public uint location;
     List<object> stack = new List<object>();
     List<uint> protectedStack = new List<uint>();
-    Dictionary<int, object> variables = new Dictionary<int, object>();
+    Dictionary<int, object> variables;
     fishBytesNativeObject thisFunc = new fishBytesNativeObject();
     Func<fishBytesNativeObject> getLocalObject;
     int commentLevel;
+
+    public fishBytesInterpreter()
+    {
+#if FISHBYTES_FRAMEWORK_DEFINED // Check for a fishBytes framework
+        variables = fishBytesFramework.GetNamespaces();
+#else
+        variables = new Dictionary<int, object>();
+#endif
+    }
+
 
     /// <summary>
     /// Pop an object at a specified position on the stack.
@@ -288,8 +298,8 @@ public class fishBytesInterpreter
             {
                 switch (opcodes[location])
                 {
-                    #endregion
-                    #region Already added commands
+#endregion
+#region Already added commands
                     case 0x61: // ADD
                         if (stack.Count == 0)
                         {
@@ -479,6 +489,7 @@ public class fishBytesInterpreter
                         if (c.Equals(0) || c.Equals(false))
                             break;
                         location = (uint)l;
+                        protectedStack.Insert(0, location);
                         goto next;
 
                     case 0x22: // STRING
@@ -672,9 +683,12 @@ public class fishBytesInterpreter
                         goto next;
 
                     case 0x2D: // END SUB
-                        location = protectedStack[0];
-                        protectedStack.RemoveAt(0);
-                        goto next;
+                        location = protectedStack[0] + 1; // We want to go to the
+                        protectedStack.RemoveAt(0);       // character after so
+                        goto next;                        // that we don't get
+                                                          // stuck in an infinite
+                                                          // loop.
+
 
                     case 0x24: // RUN // RUNCOM
                         var pr = new ProcessStartInfo(Pop().ToString())
@@ -692,7 +706,7 @@ public class fishBytesInterpreter
                         pro.WaitForExit();
                         Push(pro.ExitCode);
                         break;
-                    #endregion
+#endregion
 
                     case 0x6D: // MAKE
                         Push(fishBytesNativeObject.Construct((fishBytesNativeObject)Pop()));
@@ -748,7 +762,7 @@ public class fishBytesInterpreter
                         break;
 
                     // add more above this line
-                    #region Collapse for adding commands
+#region Collapse for adding commands
                     // Whitespace characters are ignored.
                     case 0x0A:
                     case 0x0D:
@@ -777,8 +791,8 @@ public class Program
     /// <summary>
     /// The list of opcodes supported in this version.
     /// </summary>
-    #endregion
-    #region Help
+#endregion
+#region Help
     public static readonly string help = $@"
 =====================================================================
 =                         List of opcodes:                          =
@@ -977,12 +991,12 @@ public class Program
 |      |              | the interpreter.     |
 +------+--------------+----------------------+
 ";
-    #endregion
+#endregion
 /*
 |      |              |                      |
 +------+--------------+----------------------+
 |      |              |                      |*/
-    #region Collapse for adding commands
+#region Collapse for adding commands
     /// <summary>
     /// The entry point of the program, where the program control starts and ends.
     /// </summary>
@@ -1062,20 +1076,12 @@ public class Program
                             Environment.Exit(ec);
                         }
                     }
-                    catch (ArgumentOutOfRangeException e)
-                    {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine($".NET Exception Encountered at byte {sword.location} ({Convert.ToChar(File.ReadAllBytes(path)[sword.location])})");
-                        Console.WriteLine($"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                        Console.WriteLine(e);
-                        Console.ForegroundColor = ConsoleColor.White;
-                    }
                     catch (Exception e)
                     {
                         Console.ForegroundColor = ConsoleColor.Red;
                         Console.WriteLine($".NET Exception Encountered at byte {sword.location} ({Convert.ToChar(File.ReadAllBytes(path)[sword.location])})");
                         Console.WriteLine($"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                        Console.WriteLine(e);
+                        Console.WriteLine(e.Message);
                         Console.ForegroundColor = ConsoleColor.White;
                     }
                     break;
@@ -1108,18 +1114,15 @@ public class Program
             Console.ForegroundColor = ConsoleColor.White;
             return Environment.CurrentDirectory;
         }
-        else if (File.Exists(@"/System/Library/CoreServices/SystemVersion.plist"))
+        if (File.Exists(@"/System/Library/CoreServices/SystemVersion.plist"))
         {
             // Makakakakakakakakakakakakakakakintosh
             return Environment.GetEnvironmentVariable("HOME") + "/Library/Application Support/fbi/lib";
         }
-        else
-        {
-            Console.ForegroundColor = ConsoleColor.DarkYellow;
-            Console.WriteLine("Warning: Your OS is not fully supported. As a result, some programs may not function properly.");
-            Console.ForegroundColor = ConsoleColor.White;
-            return Environment.CurrentDirectory;
-        }
+        Console.ForegroundColor = ConsoleColor.DarkYellow;
+        Console.WriteLine("Warning: Your OS is not fully supported. As a result, some programs may not function properly.");
+        Console.ForegroundColor = ConsoleColor.White;
+        return Environment.CurrentDirectory;
     }
 
     /// <summary>
